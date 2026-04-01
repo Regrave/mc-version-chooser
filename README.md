@@ -2,6 +2,28 @@
 
 A [Calagopus Panel](https://github.com/calagopus/panel) extension that lets users switch Minecraft server versions directly from the panel UI.
 
+## Screenshots
+
+### Type Selection
+Browse all available server types with category filters. Auto-detects your current server type.
+
+![Type Selection](.github/screenshots/type-selection.png)
+
+### Version Selection
+Pick a Minecraft version with Java requirement indicators and a snapshot toggle.
+
+![Version Selection](.github/screenshots/version-selection.png)
+
+### Install Modal
+Select a specific build, toggle clean install, and accept the EULA before installing.
+
+![Install Modal](.github/screenshots/install-modal.png)
+
+### Admin Configuration
+Configure the MCJars API URL and default category filter from the admin panel.
+
+![Admin Settings](.github/screenshots/admin-settings.png)
+
 ## Features
 
 ### User-Facing
@@ -59,7 +81,7 @@ A [Calagopus Panel](https://github.com/calagopus/panel) extension that lets user
 
 ## Installation
 
-1. Download the latest `.c7s.zip` release
+1. Download the latest `.c7s.zip` from [Releases](https://github.com/Regrave/mc-version-chooser/releases)
 2. Upload it to your panel's extensions directory
 3. Trigger a panel rebuild
 4. The `mcvc_installs` table will be created automatically on startup
