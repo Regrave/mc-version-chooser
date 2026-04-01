@@ -1,0 +1,3 @@
+package_name = "gg.ir77.mcversionchooser"
+name = "MC Version Chooser"
+panel_version = ">=1.0.0"

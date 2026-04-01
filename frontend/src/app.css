@@ -1,0 +1,297 @@
+/* ========================================
+   MC Version Chooser - Card Grid Layout
+   ======================================== */
+
+.mc-vc {
+  max-width: 100%;
+}
+
+/* Header */
+.mc-vc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.mc-vc-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mc-vc-back {
+  appearance: none;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: var(--mantine-color-dimmed);
+  transition: all 0.15s ease;
+}
+
+.mc-vc-back:hover {
+  background: var(--mantine-color-default-hover);
+  color: var(--mantine-color-text);
+}
+
+.mc-vc-header-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}
+
+/* Center loader */
+.mc-vc-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 48px 0;
+}
+
+/* Category tabs */
+.mc-vc-tabs {
+  background: transparent !important;
+}
+
+/* ========================================
+   Type Grid
+   ======================================== */
+.mc-vc-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+}
+
+.mc-vc-type-card {
+  appearance: none;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--mantine-radius-md);
+  border: 1px solid var(--mantine-color-default-border);
+  background: var(--mantine-color-body);
+  transition: all 0.15s ease;
+  position: relative;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.mc-vc-type-card:hover {
+  border-color: var(--mantine-color-dimmed);
+  background: var(--mantine-color-default-hover);
+}
+
+.mc-vc-type-card--detected {
+  border-color: var(--mantine-primary-color-filled);
+}
+
+.mc-vc-type-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  image-rendering: pixelated;
+}
+
+.mc-vc-type-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mc-vc-type-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Custom tags that don't clip */
+.mc-vc-tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.mc-vc-tag--green {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.mc-vc-tag--blue {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.mc-vc-tag--yellow {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.mc-vc-tag--red {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.mc-vc-tag--gray {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+}
+
+/* ========================================
+   Version Grid
+   ======================================== */
+.mc-vc-version-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.mc-vc-version-card {
+  appearance: none;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--mantine-radius-md);
+  border: 1px solid var(--mantine-color-default-border);
+  background: var(--mantine-color-body);
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: visible;
+}
+
+.mc-vc-version-card:hover {
+  border-color: var(--mantine-color-dimmed);
+  background: var(--mantine-color-default-hover);
+}
+
+.mc-vc-version-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  image-rendering: pixelated;
+}
+
+/* ========================================
+   Install Modal
+   ======================================== */
+.mc-vc-modal-info {
+  padding: 12px;
+  border-radius: var(--mantine-radius-md);
+  border: 1px solid var(--mantine-color-default-border);
+  background: var(--mantine-color-body);
+}
+
+.mc-vc-changes {
+  margin-top: 4px;
+}
+
+.mc-vc-change-item {
+  padding-left: 8px;
+  border-left: 2px solid var(--mantine-color-default-border);
+  margin-bottom: 2px;
+}
+
+/* ========================================
+   Admin Config Page
+   ======================================== */
+.mcvc-admin {
+  max-width: 100%;
+}
+
+.mcvc-admin-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.mcvc-admin-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.mcvc-admin-stat-card {
+  padding: 16px;
+  border-radius: var(--mantine-radius-md);
+  border: 1px solid var(--mantine-color-default-border);
+  background: var(--mantine-color-body);
+}
+
+.mcvc-admin-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.mcvc-admin-chart-card {
+  padding: 16px;
+  border-radius: var(--mantine-radius-md);
+  border: 1px solid var(--mantine-color-default-border);
+  background: var(--mantine-color-body);
+}
+
+.mcvc-admin-chart-container {
+  height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mcvc-admin-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--mantine-radius-md);
+  border: 1px solid var(--mantine-color-default-border);
+}
+
+/* ========================================
+   Responsive
+   ======================================== */
+@media (max-width: 768px) {
+  .mc-vc-type-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mc-vc-version-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+
+  .mcvc-admin-stat-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mcvc-admin-chart-grid {
+    grid-template-columns: 1fr;
+  }
+}

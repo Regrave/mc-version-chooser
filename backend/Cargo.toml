@@ -1,0 +1,19 @@
+[package]
+name = "gg_ir77_mcversionchooser"
+description = "MC Version Chooser Extension"
+authors = []
+version = "2.0.0"
+edition = { workspace = true }
+
+[dependencies]
+shared = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+wings-api = { workspace = true }
+compact_str = { workspace = true }
+uuid = { workspace = true }
+sqlx = { workspace = true }
+chrono = { workspace = true }

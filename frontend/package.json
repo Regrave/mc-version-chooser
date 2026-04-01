@@ -1,0 +1,11 @@
+{
+  "name": "gg_mc_version_chooser",
+  "private": true,
+  "version": "1.0.1",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "shared": "workspace:*"
+  }
+}
