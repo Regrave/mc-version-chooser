@@ -148,83 +148,43 @@ export function detectServerType(eggName: string, startup: string, dockerImage: 
   return null;
 }
 
-/** File-based detection map: config file -> MCJars type */
-const FILE_TO_TYPE: Record<string, string> = {
-  'purpur.yml': 'PURPUR',
-  'pufferfish.yml': 'PUFFERFISH',
-};
-
 /**
- * Detect server type by examining actual server files first,
- * falling back to egg name only if the server hasn't been started yet.
+ * Detect server type from .mcvc-type.json marker file.
+ * This marker is written by the version chooser on every install.
+ * If no marker exists, defaults to VANILLA for started servers, null for fresh servers.
  */
 export async function detectServerTypeFromFiles(
   uuid: string,
-  eggName: string,
-  startup: string,
-  dockerImage: string,
 ): Promise<string | null> {
   try {
+    // Priority 1: Read .mcvc-type.json marker
+    try {
+      const { data: markerData } = await axiosInstance.get(`/api/client/servers/${uuid}/files/contents`, {
+        params: { file: '/.mcvc-type.json' },
+        responseType: 'text',
+        transformResponse: [(d: string) => d],
+      });
+      if (markerData) {
+        const marker = JSON.parse(markerData);
+        if (marker.type) return marker.type;
+      }
+    } catch { /* marker doesn't exist */ }
+
+    // Priority 2: If server has been started but no marker, default to VANILLA
     const { data } = await axiosInstance.get(`/api/client/servers/${uuid}/files/list`, {
       params: { directory: '/', page: 1, per_page: 100, sort: 'name_asc' },
     });
-    const entries = (data.entries?.data ?? []) as Array<{ name: string; directory: boolean; file: boolean }>;
-    const dirs = new Set(entries.filter((e) => e.directory).map((e) => e.name));
-    const files = new Set(entries.filter((e) => e.file).map((e) => e.name));
-
-    const hasBeenStarted = files.has('server.properties') || files.has('version.json');
-
-    if (!hasBeenStarted) {
-      // Server never started - fall back to egg name hints
-      return detectServerType(eggName, startup, dockerImage);
+    const files = new Set(
+      ((data.entries?.data ?? []) as Array<{ name: string; file: boolean }>)
+        .filter((e) => e.file).map((e) => e.name),
+    );
+    if (files.has('server.properties') || files.has('version.json')) {
+      return 'VANILLA';
     }
 
-    // Fabric
-    if (dirs.has('.fabric') || files.has('fabric-server-launch.jar') || files.has('fabric-server-launcher.jar')) {
-      return 'FABRIC';
-    }
-
-    // Quilt
-    if (files.has('quilt-server-launch.jar')) return 'QUILT';
-
-    // NeoForge / Forge - check libraries/
-    if (dirs.has('libraries')) {
-      try {
-        const { data: libData } = await axiosInstance.get(`/api/client/servers/${uuid}/files/list`, {
-          params: { directory: '/libraries/net', page: 1, per_page: 100, sort: 'name_asc' },
-        });
-        const libDirs = new Set((libData.entries?.data ?? []).filter((e: any) => e.directory).map((e: any) => e.name));
-        if (libDirs.has('neoforged')) return 'NEOFORGE';
-        if (libDirs.has('minecraftforge')) return 'FORGE';
-      } catch { /* ignore */ }
-    }
-
-    // Check specific config files (most specific first)
-    for (const [fileName, type] of Object.entries(FILE_TO_TYPE)) {
-      if (files.has(fileName)) return type;
-    }
-
-    // Paper: check config/paper-global.yml
-    if (files.has('paper-global.yml')) return 'PAPER';
-    if (dirs.has('config')) {
-      try {
-        const { data: cfgData } = await axiosInstance.get(`/api/client/servers/${uuid}/files/list`, {
-          params: { directory: '/config', page: 1, per_page: 100, sort: 'name_asc' },
-        });
-        const cfgFiles = new Set((cfgData.entries?.data ?? []).filter((e: any) => e.file).map((e: any) => e.name));
-        if (cfgFiles.has('paper-global.yml')) return 'PAPER';
-      } catch { /* ignore */ }
-    }
-
-    // Spigot / Bukkit
-    if (files.has('spigot.yml')) return dirs.has('mods') ? 'MOHIST' : 'SPIGOT';
-    if (files.has('bukkit.yml')) return 'BUKKIT';
-
-    // No loader files found on a started server = vanilla
-    return 'VANILLA';
+    return null; // Server never started, no info
   } catch {
-    // If file listing fails, fall back to egg name
-    return detectServerType(eggName, startup, dockerImage);
+    return null;
   }
 }
 

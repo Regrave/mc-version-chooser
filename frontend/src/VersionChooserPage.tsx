@@ -2,7 +2,8 @@ import { faArrowLeft, faArrowDown, faCheck, faExclamationTriangle, faRefresh } f
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Alert, Badge, Checkbox, Group, Loader, Modal, SegmentedControl, Stack, Text, Title } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { httpErrorToHuman } from '@/api/axios.ts';
+import { axiosInstance, httpErrorToHuman } from '@/api/axios.ts';
+import sendPowerAction from '@/api/server/sendPowerAction.ts';
 import Button from '@/elements/Button.tsx';
 import Select from '@/elements/input/Select.tsx';
 import ServerContentContainer from '@/elements/containers/ServerContentContainer.tsx';
@@ -87,13 +88,8 @@ export default function VersionChooserPage() {
           }
         }
         setAllTypes(flat);
-        // Detect server type from files first, egg name as fallback
-        const hint = await detectServerTypeFromFiles(
-          server.uuid,
-          server.egg.name,
-          server.startup ?? server.egg.startup,
-          server.image ?? '',
-        );
+        // Detect server type from .mcvc-type.json marker
+        const hint = await detectServerTypeFromFiles(server.uuid);
         if (hint && flat[hint]) setDetectedType(hint);
       })
       .catch((err) => addToast(`Failed to load server types: ${err.message}`, 'error'))
@@ -197,9 +193,26 @@ export default function VersionChooserPage() {
     }
 
     setInstalling(true);
-    setInstallStep('downloading');
 
     try {
+      // Stop the server if it's running
+      if (isRunning) {
+        setInstallStep('downloading');
+        addToast('Stopping server before installing...', 'info');
+        await sendPowerAction(server.uuid, 'stop');
+
+        // Wait for server to stop (up to 30s)
+        for (let i = 0; i < 20; i++) {
+          await new Promise((r) => setTimeout(r, 1500));
+          // Re-check status from the store - it updates via websocket
+          const currentStatus = useServerStore.getState().server.status;
+          if (currentStatus === 'offline' || currentStatus === null) break;
+        }
+        addToast('Server stopped.', 'success');
+      }
+
+      setInstallStep('downloading');
+
       const isZip = isBuildZipInstall(selectedBuild);
       const params = new URLSearchParams({ url: downloadUrl, filename: jarFilename });
       if (isZip) params.set('unzip', 'true');
@@ -227,13 +240,19 @@ export default function VersionChooserPage() {
         if (status.state === 'done') break;
       }
 
+      // Write .mcvc-type.json marker for other extensions to detect server type
+      if (selectedType) {
+        try {
+          await axiosInstance.post(
+            `/api/client/servers/${server.uuid}/files/write`,
+            JSON.stringify({ type: selectedType, version: selectedVersion, installedAt: new Date().toISOString() }),
+            { params: { file: '/.mcvc-type.json' }, headers: { 'Content-Type': 'text/plain' } },
+          );
+        } catch { /* non-critical */ }
+      }
+
       setInstallStep('done');
-      addToast(
-        isRunning
-          ? 'Version updated! Restart your server to apply changes.'
-          : 'Version updated successfully!',
-        'success',
-      );
+      addToast('Version updated successfully!', 'success');
     } catch (err) {
       setInstallStep('error');
       const message = err instanceof Error ? err.message : httpErrorToHuman(err);
