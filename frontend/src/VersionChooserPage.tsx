@@ -3,7 +3,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Alert, Badge, Checkbox, Group, Loader, Modal, SegmentedControl, Stack, Text, Title } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { axiosInstance, httpErrorToHuman } from '@/api/axios.ts';
-import sendPowerAction from '@/api/server/sendPowerAction.ts';
 import Button from '@/elements/Button.tsx';
 import Select from '@/elements/input/Select.tsx';
 import ServerContentContainer from '@/elements/containers/ServerContentContainer.tsx';
@@ -67,6 +66,7 @@ export default function VersionChooserPage() {
   // Install options
   const [cleanInstall, setCleanInstall] = useState(false);
   const [acceptEula, setAcceptEula] = useState(false);
+  const [acceptRisk, setAcceptRisk] = useState(false);
 
   // Soft hint from egg name (not authoritative)
   const [detectedType, setDetectedType] = useState<string | null>(null);
@@ -172,6 +172,7 @@ export default function VersionChooserPage() {
     setInstallStep('idle');
     setCleanInstall(false);
     setAcceptEula(false);
+    setAcceptRisk(false);
   };
 
   const goBack = () => {
@@ -193,25 +194,17 @@ export default function VersionChooserPage() {
     }
 
     setInstalling(true);
+    setInstallStep('downloading');
 
     try {
-      // Stop the server if it's running
-      if (isRunning) {
-        setInstallStep('downloading');
-        addToast('Stopping server before installing...', 'info');
-        await sendPowerAction(server.uuid, 'stop');
-
-        // Wait for server to stop (up to 30s)
-        for (let i = 0; i < 20; i++) {
-          await new Promise((r) => setTimeout(r, 1500));
-          // Re-check status from the store - it updates via websocket
-          const currentStatus = useServerStore.getState().server.status;
-          if (currentStatus === 'offline' || currentStatus === null) break;
-        }
-        addToast('Server stopped.', 'success');
-      }
-
-      setInstallStep('downloading');
+      // Write eula.txt since the user accepted the EULA in the modal
+      try {
+        await axiosInstance.post(
+          `/api/client/servers/${server.uuid}/files/write`,
+          'eula=true\n',
+          { params: { file: '/eula.txt' }, headers: { 'Content-Type': 'text/plain' } },
+        );
+      } catch { /* non-critical */ }
 
       const isZip = isBuildZipInstall(selectedBuild);
       const params = new URLSearchParams({ url: downloadUrl, filename: jarFilename });
@@ -284,7 +277,7 @@ export default function VersionChooserPage() {
         {/* Running warning */}
         {isRunning && step !== 'type' && (
           <Alert icon={<FontAwesomeIcon icon={faExclamationTriangle} />} color='yellow' variant='light' mt='sm' mb='sm'>
-            Server is running. Restart after changing versions.
+            Your server is currently running. You will need to stop it before installing a new version.
           </Alert>
         )}
 
@@ -465,6 +458,13 @@ export default function VersionChooserPage() {
               </div>
             )}
 
+            {/* Server must be stopped */}
+            {isRunning && (
+              <Alert icon={<FontAwesomeIcon icon={faExclamationTriangle} />} color='red' variant='light'>
+                Your server must be stopped before changing versions. Please stop it first.
+              </Alert>
+            )}
+
             {/* Clean install option */}
             <Checkbox
               label='Clean install'
@@ -472,6 +472,16 @@ export default function VersionChooserPage() {
               checked={cleanInstall}
               onChange={(e) => setCleanInstall(e.currentTarget.checked)}
               color='red'
+              disabled={isRunning}
+            />
+
+            {/* Acknowledgment */}
+            <Checkbox
+              label='I understand changing versions may affect my server'
+              description='Existing plugins, mods, or configs may not be compatible with the new version. Back up important files before proceeding.'
+              checked={acceptRisk}
+              onChange={(e) => setAcceptRisk(e.currentTarget.checked)}
+              disabled={isRunning}
             />
 
             {/* EULA */}
@@ -480,6 +490,7 @@ export default function VersionChooserPage() {
               description='By checking this box you agree to the Minecraft End User License Agreement.'
               checked={acceptEula}
               onChange={(e) => setAcceptEula(e.currentTarget.checked)}
+              disabled={isRunning}
             />
 
             {/* Install button */}
@@ -496,7 +507,7 @@ export default function VersionChooserPage() {
               <Button
                 onClick={doInstall}
                 loading={installing && installStep !== 'done' && installStep !== 'error'}
-                disabled={!selectedBuild || !getBuildDownloadUrl(selectedBuild) || !acceptEula}
+                disabled={isRunning || !selectedBuild || !getBuildDownloadUrl(selectedBuild) || !acceptEula || !acceptRisk}
                 color={installStep === 'done' ? 'green' : installStep === 'error' ? 'red' : 'red'}
                 leftSection={
                   <FontAwesomeIcon
