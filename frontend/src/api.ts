@@ -149,15 +149,28 @@ export function detectServerType(eggName: string, startup: string, dockerImage: 
 }
 
 /**
- * Detect server type from .mcvc-type.json marker file.
- * This marker is written by the version chooser on every install.
- * If no marker exists, defaults to VANILLA for started servers, null for fresh servers.
+ * Detect server type using a deterministic decision tree.
+ *
+ * Priority 1: .mcvc-type.json marker (from this extension on install)
+ * Priority 2: Directory/file fingerprints (most specific first)
+ *
+ * Decision tree (order matters — server types inherit from each other):
+ *   libraries/net/neoforged/       → NEOFORGE
+ *   libraries/net/minecraftforge/  → FORGE
+ *   fabric-server-launch*.jar / .fabric/ → FABRIC
+ *   quilt-server-launcher*.jar / .quilt/ → QUILT
+ *   purpur.yml                     → PURPUR
+ *   pufferfish.yml                 → PUFFERFISH
+ *   leaves.yml                     → LEAVES
+ *   config/folia-global.yml        → FOLIA
+ *   config/paper-global.yml        → PAPER
+ *   spigot.yml                     → SPIGOT
+ *   bukkit.yml                     → BUKKIT
+ *   server.properties              → VANILLA
  */
-export async function detectServerTypeFromFiles(
-  uuid: string,
-): Promise<string | null> {
+export async function detectServerTypeFromFiles(uuid: string): Promise<string | null> {
   try {
-    // Priority 1: Read .mcvc-type.json marker
+    // ── Priority 1: .mcvc-type.json marker ──
     try {
       const { data: markerData } = await axiosInstance.get(`/api/client/servers/${uuid}/files/contents`, {
         params: { file: '/.mcvc-type.json' },
@@ -170,19 +183,66 @@ export async function detectServerTypeFromFiles(
       }
     } catch { /* marker doesn't exist */ }
 
-    // Priority 2: If server has been started but no marker, default to VANILLA
+    // ── Priority 2: File fingerprint decision tree ──
     const { data } = await axiosInstance.get(`/api/client/servers/${uuid}/files/list`, {
       params: { directory: '/', page: 1, per_page: 100, sort: 'name_asc' },
     });
-    const files = new Set(
-      ((data.entries?.data ?? []) as Array<{ name: string; file: boolean }>)
-        .filter((e) => e.file).map((e) => e.name),
-    );
-    if (files.has('server.properties') || files.has('version.json')) {
-      return 'VANILLA';
+    const entries = (data.entries?.data ?? []) as Array<{ name: string; directory: boolean; file: boolean }>;
+    const rootDirs = new Set(entries.filter((e) => e.directory).map((e) => e.name));
+    const rootFiles = new Set(entries.filter((e) => e.file).map((e) => e.name));
+
+    // NeoForge / Forge
+    if (rootDirs.has('libraries')) {
+      const { data: libData } = await axiosInstance.get(`/api/client/servers/${uuid}/files/list`, {
+        params: { directory: '/libraries/net', page: 1, per_page: 100, sort: 'name_asc' },
+      }).catch(() => ({ data: { entries: { data: [] } } }));
+      const libDirs = new Set((libData.entries?.data ?? []).filter((e: any) => e.directory).map((e: any) => e.name));
+      if (libDirs.has('neoforged')) return 'NEOFORGE';
+      if (libDirs.has('minecraftforge')) return 'FORGE';
     }
 
-    return null; // Server never started, no info
+    // Fabric
+    if (rootDirs.has('.fabric') || rootFiles.has('fabric-server-launch.jar') || rootFiles.has('fabric-server-launcher.jar')) {
+      return 'FABRIC';
+    }
+
+    // Quilt
+    if (rootDirs.has('.quilt') || rootFiles.has('quilt-server-launch.jar') || rootFiles.has('quilt-server-launcher.jar')) {
+      return 'QUILT';
+    }
+
+    // Purpur (check before Pufferfish — Purpur includes Pufferfish patches)
+    if (rootFiles.has('purpur.yml')) return 'PURPUR';
+
+    // Pufferfish
+    if (rootFiles.has('pufferfish.yml')) return 'PUFFERFISH';
+
+    // Leaves (Paper fork)
+    if (rootFiles.has('leaves.yml')) return 'LEAVES';
+
+    // Folia / Paper — check config/ directory
+    if (rootDirs.has('config')) {
+      const { data: cfgData } = await axiosInstance.get(`/api/client/servers/${uuid}/files/list`, {
+        params: { directory: '/config', page: 1, per_page: 100, sort: 'name_asc' },
+      }).catch(() => ({ data: { entries: { data: [] } } }));
+      const cfgFiles = new Set((cfgData.entries?.data ?? []).filter((e: any) => e.file).map((e: any) => e.name));
+      if (cfgFiles.has('folia-global.yml')) return 'FOLIA';
+      if (cfgFiles.has('paper-global.yml')) return 'PAPER';
+    }
+
+    // Older Paper (paper-global.yml in root)
+    if (rootFiles.has('paper-global.yml')) return 'PAPER';
+
+    // Spigot
+    if (rootFiles.has('spigot.yml')) return 'SPIGOT';
+
+    // CraftBukkit
+    if (rootFiles.has('bukkit.yml')) return 'BUKKIT';
+
+    // Vanilla — server has been started but nothing else matched
+    if (rootFiles.has('server.properties')) return 'VANILLA';
+
+    return null; // Server never started
   } catch {
     return null;
   }
