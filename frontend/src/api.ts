@@ -114,6 +114,8 @@ export async function fetchBuilds(type: string, version: string): Promise<McJars
   return res.json();
 }
 
+import { axiosInstance } from '@/api/axios.ts';
+
 // Map egg names AND startup commands to mcjars type identifiers
 const TYPE_KEYWORDS: Record<string, string> = {
   vanilla: 'VANILLA',
@@ -135,17 +137,95 @@ const TYPE_KEYWORDS: Record<string, string> = {
   pufferfish: 'PUFFERFISH',
 };
 
-/** Detect server type from egg name, startup command, or docker image */
+/** Egg-name-only fallback (synchronous, used when server hasn't been started) */
 export function detectServerType(eggName: string, startup: string, dockerImage: string): string | null {
-  // Check all sources for type keywords
   const sources = [eggName, startup, dockerImage].map((s) => s.toLowerCase());
-
   for (const [keyword, type] of Object.entries(TYPE_KEYWORDS)) {
     if (sources.some((s) => s.includes(keyword))) {
       return type;
     }
   }
   return null;
+}
+
+/** File-based detection map: config file -> MCJars type */
+const FILE_TO_TYPE: Record<string, string> = {
+  'purpur.yml': 'PURPUR',
+  'pufferfish.yml': 'PUFFERFISH',
+};
+
+/**
+ * Detect server type by examining actual server files first,
+ * falling back to egg name only if the server hasn't been started yet.
+ */
+export async function detectServerTypeFromFiles(
+  uuid: string,
+  eggName: string,
+  startup: string,
+  dockerImage: string,
+): Promise<string | null> {
+  try {
+    const { data } = await axiosInstance.get(`/api/client/servers/${uuid}/files/list`, {
+      params: { directory: '/', page: 1, per_page: 100, sort: 'name_asc' },
+    });
+    const entries = (data.entries?.data ?? []) as Array<{ name: string; directory: boolean; file: boolean }>;
+    const dirs = new Set(entries.filter((e) => e.directory).map((e) => e.name));
+    const files = new Set(entries.filter((e) => e.file).map((e) => e.name));
+
+    const hasBeenStarted = files.has('server.properties') || files.has('version.json');
+
+    if (!hasBeenStarted) {
+      // Server never started - fall back to egg name hints
+      return detectServerType(eggName, startup, dockerImage);
+    }
+
+    // Fabric
+    if (dirs.has('.fabric') || files.has('fabric-server-launch.jar') || files.has('fabric-server-launcher.jar')) {
+      return 'FABRIC';
+    }
+
+    // Quilt
+    if (files.has('quilt-server-launch.jar')) return 'QUILT';
+
+    // NeoForge / Forge - check libraries/
+    if (dirs.has('libraries')) {
+      try {
+        const { data: libData } = await axiosInstance.get(`/api/client/servers/${uuid}/files/list`, {
+          params: { directory: '/libraries/net', page: 1, per_page: 100, sort: 'name_asc' },
+        });
+        const libDirs = new Set((libData.entries?.data ?? []).filter((e: any) => e.directory).map((e: any) => e.name));
+        if (libDirs.has('neoforged')) return 'NEOFORGE';
+        if (libDirs.has('minecraftforge')) return 'FORGE';
+      } catch { /* ignore */ }
+    }
+
+    // Check specific config files (most specific first)
+    for (const [fileName, type] of Object.entries(FILE_TO_TYPE)) {
+      if (files.has(fileName)) return type;
+    }
+
+    // Paper: check config/paper-global.yml
+    if (files.has('paper-global.yml')) return 'PAPER';
+    if (dirs.has('config')) {
+      try {
+        const { data: cfgData } = await axiosInstance.get(`/api/client/servers/${uuid}/files/list`, {
+          params: { directory: '/config', page: 1, per_page: 100, sort: 'name_asc' },
+        });
+        const cfgFiles = new Set((cfgData.entries?.data ?? []).filter((e: any) => e.file).map((e: any) => e.name));
+        if (cfgFiles.has('paper-global.yml')) return 'PAPER';
+      } catch { /* ignore */ }
+    }
+
+    // Spigot / Bukkit
+    if (files.has('spigot.yml')) return dirs.has('mods') ? 'MOHIST' : 'SPIGOT';
+    if (files.has('bukkit.yml')) return 'BUKKIT';
+
+    // No loader files found on a started server = vanilla
+    return 'VANILLA';
+  } catch {
+    // If file listing fails, fall back to egg name
+    return detectServerType(eggName, startup, dockerImage);
+  }
 }
 
 /** Extract jar filename from a startup command like "java -jar server.jar" */

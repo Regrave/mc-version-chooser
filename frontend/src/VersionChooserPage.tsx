@@ -10,7 +10,7 @@ import { useToast } from '@/providers/ToastProvider.tsx';
 import { useServerStore } from '@/stores/server.ts';
 import {
   detectJarFilename,
-  detectServerType,
+  detectServerTypeFromFiles,
   fetchBuilds,
   fetchTypes,
   fetchVersions,
@@ -78,7 +78,7 @@ export default function VersionChooserPage() {
   // Load settings + types on mount
   useEffect(() => {
     loadMcjarsBaseUrl().then(() => fetchTypes())
-      .then((res) => {
+      .then(async (res) => {
         setCategorizedTypes(res.types);
         const flat: Record<string, McJarsType> = {};
         for (const cat of Object.values(res.types)) {
@@ -87,8 +87,13 @@ export default function VersionChooserPage() {
           }
         }
         setAllTypes(flat);
-        // Soft hint from egg name
-        const hint = detectServerType(server.egg.name, server.startup ?? server.egg.startup, server.image ?? '');
+        // Detect server type from files first, egg name as fallback
+        const hint = await detectServerTypeFromFiles(
+          server.uuid,
+          server.egg.name,
+          server.startup ?? server.egg.startup,
+          server.image ?? '',
+        );
         if (hint && flat[hint]) setDetectedType(hint);
       })
       .catch((err) => addToast(`Failed to load server types: ${err.message}`, 'error'))
