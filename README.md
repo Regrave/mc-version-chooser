@@ -35,6 +35,8 @@ Configure the MCJars API URL and default category filter from the admin panel.
 - Clean install option (wipes all files before installing)
 - Zip-based installs for modded servers (Forge, NeoForge)
 - Real-time download progress tracking
+- Automatically stops the server before installing a new version
+- Writes `.mcvc-type.json` marker file on install — used by other extensions (like the Content Installer) to reliably detect the current server type without guessing from egg names or leftover files
 
 ### Admin Panel
 - Extension configuration page with customizable MCJars API URL
