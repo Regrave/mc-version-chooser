@@ -2,6 +2,7 @@ import { faArrowLeft, faArrowDown, faCheck, faExclamationTriangle, faRefresh } f
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Alert, Badge, Checkbox, Group, Loader, Modal, SegmentedControl, Stack, Text, Title } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { axiosInstance, httpErrorToHuman } from '@/api/axios.ts';
 import Button from '@/elements/Button.tsx';
 import Select from '@/elements/input/Select.tsx';
@@ -36,6 +37,7 @@ const CATEGORY_FILTERS: Record<string, (cats: string[]) => boolean> = {
 export default function VersionChooserPage() {
   const { addToast } = useToast();
   const { server } = useServerStore();
+  const navigate = useNavigate();
 
   // Navigation
   const [step, setStep] = useState<Step>('type');
@@ -501,9 +503,12 @@ export default function VersionChooserPage() {
                 Cancel
               </Button>
               <Button
-                onClick={doInstall}
+                onClick={installStep === 'done'
+                  ? () => navigate(`/server/${server.uuidShort}`)
+                  : doInstall
+                }
                 loading={installing && installStep !== 'done' && installStep !== 'error'}
-                disabled={isRunning || !selectedBuild || !getBuildDownloadUrl(selectedBuild) || !acceptEula || !acceptRisk}
+                disabled={installStep !== 'done' && (isRunning || !selectedBuild || !getBuildDownloadUrl(selectedBuild) || !acceptEula || !acceptRisk)}
                 color={installStep === 'done' ? 'green' : installStep === 'error' ? 'red' : 'red'}
                 leftSection={
                   <FontAwesomeIcon
@@ -514,7 +519,7 @@ export default function VersionChooserPage() {
                 {installStep === 'idle' && 'Install'}
                 {installStep === 'downloading' && 'Downloading...'}
                 {installStep === 'installing' && 'Installing...'}
-                {installStep === 'done' && 'Done!'}
+                {installStep === 'done' && 'Go to Console'}
                 {installStep === 'error' && 'Retry'}
               </Button>
             </Group>
