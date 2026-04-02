@@ -197,15 +197,6 @@ export default function VersionChooserPage() {
     setInstallStep('downloading');
 
     try {
-      // Write eula.txt since the user accepted the EULA in the modal
-      try {
-        await axiosInstance.post(
-          `/api/client/servers/${server.uuid}/files/write`,
-          'eula=true\n',
-          { params: { file: '/eula.txt' }, headers: { 'Content-Type': 'text/plain' } },
-        );
-      } catch { /* non-critical */ }
-
       const isZip = isBuildZipInstall(selectedBuild);
       const params = new URLSearchParams({ url: downloadUrl, filename: jarFilename });
       if (isZip) params.set('unzip', 'true');
@@ -233,15 +224,20 @@ export default function VersionChooserPage() {
         if (status.state === 'done') break;
       }
 
+      // Write eula.txt since the user accepted the EULA
+      await axiosInstance.post(
+        `/api/client/servers/${server.uuid}/files/write`,
+        'eula=true\n',
+        { params: { file: '/eula.txt' }, headers: { 'Content-Type': 'text/plain' } },
+      ).catch(() => {});
+
       // Write .mcvc-type.json marker for other extensions to detect server type
       if (selectedType) {
-        try {
-          await axiosInstance.post(
-            `/api/client/servers/${server.uuid}/files/write`,
-            JSON.stringify({ type: selectedType, version: selectedVersion, installedAt: new Date().toISOString() }),
-            { params: { file: '/.mcvc-type.json' }, headers: { 'Content-Type': 'text/plain' } },
-          );
-        } catch { /* non-critical */ }
+        await axiosInstance.post(
+          `/api/client/servers/${server.uuid}/files/write`,
+          JSON.stringify({ type: selectedType, version: selectedVersion, installedAt: new Date().toISOString() }),
+          { params: { file: '/.mcvc-type.json' }, headers: { 'Content-Type': 'text/plain' } },
+        ).catch(() => {});
       }
 
       setInstallStep('done');
