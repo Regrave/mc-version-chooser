@@ -191,33 +191,9 @@ export async function detectServerTypeFromFiles(uuid: string): Promise<string | 
     const rootDirs = new Set(entries.filter((e) => e.directory).map((e) => e.name));
     const rootFiles = new Set(entries.filter((e) => e.file).map((e) => e.name));
 
-    // NeoForge / Forge
-    if (rootDirs.has('libraries')) {
-      const { data: libData } = await axiosInstance.get(`/api/client/servers/${uuid}/files/list`, {
-        params: { directory: '/libraries/net', page: 1, per_page: 100, sort: 'name_asc' },
-      }).catch(() => ({ data: { entries: { data: [] } } }));
-      const libDirs = new Set((libData.entries?.data ?? []).filter((e: any) => e.directory).map((e: any) => e.name));
-      if (libDirs.has('neoforged')) return 'NEOFORGE';
-      if (libDirs.has('minecraftforge')) return 'FORGE';
-    }
-
-    // Fabric
-    if (rootDirs.has('.fabric') || rootFiles.has('fabric-server-launch.jar') || rootFiles.has('fabric-server-launcher.jar')) {
-      return 'FABRIC';
-    }
-
-    // Quilt
-    if (rootDirs.has('.quilt') || rootFiles.has('quilt-server-launch.jar') || rootFiles.has('quilt-server-launcher.jar')) {
-      return 'QUILT';
-    }
-
-    // Purpur (check before Pufferfish — Purpur includes Pufferfish patches)
+    // ── Bukkit-chain FIRST (Paper bundles NeoForge libs, so libraries/ check is unreliable) ──
     if (rootFiles.has('purpur.yml')) return 'PURPUR';
-
-    // Pufferfish
     if (rootFiles.has('pufferfish.yml')) return 'PUFFERFISH';
-
-    // Leaves (Paper fork)
     if (rootFiles.has('leaves.yml')) return 'LEAVES';
 
     // Folia / Paper — check config/ directory
@@ -229,17 +205,29 @@ export async function detectServerTypeFromFiles(uuid: string): Promise<string | 
       if (cfgFiles.has('folia-global.yml')) return 'FOLIA';
       if (cfgFiles.has('paper-global.yml')) return 'PAPER';
     }
-
-    // Older Paper (paper-global.yml in root)
     if (rootFiles.has('paper-global.yml')) return 'PAPER';
-
-    // Spigot
     if (rootFiles.has('spigot.yml')) return 'SPIGOT';
-
-    // CraftBukkit
     if (rootFiles.has('bukkit.yml')) return 'BUKKIT';
 
-    // Vanilla — server has been started but nothing else matched
+    // ── Mod loaders (only if no Bukkit-chain match) ──
+    if (rootDirs.has('.fabric') || rootFiles.has('fabric-server-launch.jar') || rootFiles.has('fabric-server-launcher.jar')) {
+      return 'FABRIC';
+    }
+    if (rootDirs.has('.quilt') || rootFiles.has('quilt-server-launch.jar') || rootFiles.has('quilt-server-launcher.jar')) {
+      return 'QUILT';
+    }
+
+    // NeoForge / Forge — ONLY if nothing else matched
+    if (rootDirs.has('libraries')) {
+      const { data: libData } = await axiosInstance.get(`/api/client/servers/${uuid}/files/list`, {
+        params: { directory: '/libraries/net', page: 1, per_page: 100, sort: 'name_asc' },
+      }).catch(() => ({ data: { entries: { data: [] } } }));
+      const libDirs = new Set((libData.entries?.data ?? []).filter((e: any) => e.directory).map((e: any) => e.name));
+      if (libDirs.has('neoforged')) return 'NEOFORGE';
+      if (libDirs.has('minecraftforge')) return 'FORGE';
+    }
+
+    // Vanilla
     if (rootFiles.has('server.properties')) return 'VANILLA';
 
     return null; // Server never started
