@@ -161,7 +161,7 @@ async fn record_install(
 async fn install_jar(
     state: GetState,
     permissions: GetPermissionManager,
-    mut server: GetServer,
+    server: GetServer,
     Query(params): Query<InstallParams>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     permissions
@@ -324,7 +324,7 @@ async fn do_jar_install(
 async fn install_status(
     state: GetState,
     _permissions: GetPermissionManager,
-    mut server: GetServer,
+    server: GetServer,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let node = server
         .node
