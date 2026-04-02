@@ -500,7 +500,7 @@ export default function VersionChooserPage() {
                   setStep('version');
                 }}
               >
-                Cancel
+                Close
               </Button>
               <Button
                 onClick={installStep === 'done'
