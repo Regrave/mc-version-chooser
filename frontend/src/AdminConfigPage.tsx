@@ -1,18 +1,12 @@
-import { faChartPie, faGear, faHistory, faServer } from '@fortawesome/free-solid-svg-icons';
+import { faChartPie, faHistory, faServer } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Alert, Group, Loader, SegmentedControl, Stack, Table, Text, TextInput, Title } from '@mantine/core';
+import { Alert, Group, Loader, SegmentedControl, Stack, Table, Text, Title } from '@mantine/core';
 import { ArcElement, Chart as ChartJS, Legend, Tooltip as ChartTooltip } from 'chart.js';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Doughnut } from 'react-chartjs-2';
-import Button from '@/elements/Button.tsx';
 import Select from '@/elements/input/Select.tsx';
 
 ChartJS.register(ArcElement, Legend, ChartTooltip);
-
-interface McvcSettings {
-  mcjars_api_url: string;
-  default_category: string;
-}
 
 interface StatsData {
   total: number;
@@ -61,12 +55,6 @@ function getTypeColor(type: string): string {
 export default function AdminConfigPage() {
   const [tab, setTab] = useState('stats');
 
-  // Settings state
-  const [settings, setSettings] = useState<McvcSettings>({ mcjars_api_url: 'https://mcjars.app', default_category: 'all' });
-  const [settingsLoading, setSettingsLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saveMsg, setSaveMsg] = useState<string | null>(null);
-
   // Stats state
   const [stats, setStats] = useState<StatsData | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -75,15 +63,6 @@ export default function AdminConfigPage() {
   // Recent installs
   const [installs, setInstalls] = useState<InstallRecord[]>([]);
   const [installsLoading, setInstallsLoading] = useState(true);
-
-  // Load settings
-  useEffect(() => {
-    fetch('/api/admin/mc-version-chooser/settings')
-      .then((r) => r.json())
-      .then(setSettings)
-      .catch(() => {})
-      .finally(() => setSettingsLoading(false));
-  }, []);
 
   // Load stats
   useEffect(() => {
@@ -103,24 +82,6 @@ export default function AdminConfigPage() {
       .catch(() => {})
       .finally(() => setInstallsLoading(false));
   }, []);
-
-  const saveSettings = useCallback(async () => {
-    setSaving(true);
-    setSaveMsg(null);
-    try {
-      const res = await fetch('/api/admin/mc-version-chooser/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      setSaveMsg('Settings saved.');
-    } catch (e) {
-      setSaveMsg(`Failed to save: ${e instanceof Error ? e.message : 'unknown error'}`);
-    } finally {
-      setSaving(false);
-    }
-  }, [settings]);
 
   // Chart data for type distribution
   const typeChartData = stats ? {
@@ -164,7 +125,6 @@ export default function AdminConfigPage() {
         onChange={setTab}
         data={[
           { value: 'stats', label: 'Statistics' },
-          { value: 'settings', label: 'Settings' },
           { value: 'installs', label: 'Recent Installs' },
         ]}
         mt='md'
@@ -247,56 +207,6 @@ export default function AdminConfigPage() {
                   </div>
                 )}
               </div>
-            </>
-          )}
-        </Stack>
-      )}
-
-      {/* ── Settings Tab ── */}
-      {tab === 'settings' && (
-        <Stack gap='md'>
-          <Title order={4}>
-            <FontAwesomeIcon icon={faGear} style={{ marginRight: 8 }} />
-            Extension Settings
-          </Title>
-
-          {settingsLoading ? (
-            <div className='mcvc-admin-center'><Loader color='violet' /></div>
-          ) : (
-            <>
-              <TextInput
-                label='MCJars API URL'
-                description='Base URL for the MCJars API. Change only if self-hosting.'
-                value={settings.mcjars_api_url}
-                onChange={(e) => setSettings((s) => ({ ...s, mcjars_api_url: e.currentTarget.value }))}
-                placeholder='https://mcjars.app'
-              />
-
-              <Select
-                label='Default Category'
-                description='Default category filter shown to users on the type selection page.'
-                data={[
-                  { value: 'all', label: 'All' },
-                  { value: 'recommended', label: 'Recommended' },
-                  { value: 'plugins', label: 'Servers' },
-                  { value: 'modded', label: 'Modded' },
-                  { value: 'proxy', label: 'Proxies' },
-                ]}
-                value={settings.default_category}
-                onChange={(v) => v && setSettings((s) => ({ ...s, default_category: v }))}
-              />
-
-              {saveMsg && (
-                <Alert color={saveMsg.startsWith('Failed') ? 'red' : 'green'} variant='light'>
-                  {saveMsg}
-                </Alert>
-              )}
-
-              <Group justify='flex-end'>
-                <Button onClick={saveSettings} loading={saving}>
-                  Save Settings
-                </Button>
-              </Group>
             </>
           )}
         </Stack>

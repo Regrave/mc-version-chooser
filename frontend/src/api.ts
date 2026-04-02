@@ -1,21 +1,4 @@
-let MCJARS_BASE = 'https://mcjars.app';
-
-/** Load the configured MCJars API URL from admin settings (best-effort) */
-export async function loadMcjarsBaseUrl(): Promise<void> {
-  try {
-    const res = await fetch('/api/admin/mc-version-chooser/settings');
-    if (res.ok) {
-      const data = await res.json();
-      if (data.mcjars_api_url) MCJARS_BASE = data.mcjars_api_url.replace(/\/+$/, '');
-    }
-  } catch {
-    // Use default - admin settings may not be accessible to non-admins
-  }
-}
-
-export function getMcjarsBase(): string {
-  return MCJARS_BASE;
-}
+const MCJARS_BASE = 'https://mcjars.app';
 
 export interface McJarsType {
   name: string;

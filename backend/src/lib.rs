@@ -1,5 +1,7 @@
+mod settings;
+
 use axum::{extract::Query, http::StatusCode, response::IntoResponse};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use shared::{
     GetState,
     extensions::{Extension, ExtensionRouteBuilder},
@@ -9,6 +11,7 @@ use shared::{
     },
     State,
 };
+use std::sync::Arc;
 
 #[derive(Default)]
 pub struct ExtensionStruct;
@@ -16,6 +19,13 @@ pub struct ExtensionStruct;
 #[async_trait::async_trait]
 impl Extension for ExtensionStruct {
     async fn initialize(&mut self, _state: State) {}
+
+    async fn settings_deserializer(
+        &self,
+        _state: State,
+    ) -> shared::extensions::settings::ExtensionSettingsDeserializer {
+        Arc::new(settings::McvcSettingsDeserializer)
+    }
 
     async fn initialize_router(
         &mut self,
@@ -39,14 +49,6 @@ impl Extension for ExtensionStruct {
                     .route(
                         "/mc-version-chooser/stats",
                         axum::routing::get(admin_stats),
-                    )
-                    .route(
-                        "/mc-version-chooser/settings",
-                        axum::routing::get(admin_get_settings),
-                    )
-                    .route(
-                        "/mc-version-chooser/settings",
-                        axum::routing::post(admin_set_settings),
                     )
                     .route(
                         "/mc-version-chooser/installs",
@@ -354,72 +356,7 @@ async fn install_status(
     }
 }
 
-// ─── Admin API ───────────────────────────────────────────────
-
-const SETTINGS_PREFIX: &str = "mcvc::";
-
-#[derive(Serialize, Deserialize)]
-struct McvcSettings {
-    mcjars_api_url: String,
-    default_category: String,
-}
-
-impl Default for McvcSettings {
-    fn default() -> Self {
-        Self {
-            mcjars_api_url: "https://mcjars.app".to_string(),
-            default_category: "all".to_string(),
-        }
-    }
-}
-
-/// GET /admin/mc-version-chooser/settings
-async fn admin_get_settings(
-    state: GetState,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let rows = sqlx::query_as::<_, (String, String)>(
-        "SELECT key, value FROM settings WHERE key LIKE 'mcvc::%'"
-    )
-    .fetch_all(state.database.read())
-    .await
-    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?;
-
-    let mut settings = McvcSettings::default();
-    for (key, value) in &rows {
-        match key.strip_prefix(SETTINGS_PREFIX) {
-            Some("mcjars_api_url") => settings.mcjars_api_url = value.clone(),
-            Some("default_category") => settings.default_category = value.clone(),
-            _ => {}
-        }
-    }
-
-    Ok(axum::Json(serde_json::json!(settings)))
-}
-
-/// POST /admin/mc-version-chooser/settings
-async fn admin_set_settings(
-    state: GetState,
-    axum::Json(body): axum::Json<McvcSettings>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let pairs = vec![
-        (format!("{SETTINGS_PREFIX}mcjars_api_url"), body.mcjars_api_url),
-        (format!("{SETTINGS_PREFIX}default_category"), body.default_category),
-    ];
-
-    for (key, value) in &pairs {
-        sqlx::query(
-            "INSERT INTO settings (key, value) VALUES ($1, $2)
-             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
-        )
-        .bind(key)
-        .bind(value)
-        .execute(state.database.write())
-        .await
-        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?;
-    }
-
-    Ok(axum::Json(serde_json::json!({"success": true})))
-}
+// ─── Admin API (stats only — settings handled by the panel's built-in system) ──
 
 #[derive(Deserialize)]
 struct StatsQuery {
@@ -438,7 +375,6 @@ async fn admin_stats(
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let cutoff = chrono::Utc::now() - chrono::Duration::days(query.days as i64);
 
-    // Type distribution
     let type_stats = sqlx::query_as::<_, (String, i64)>(
         "SELECT server_type, COUNT(*) as count FROM mcvc_installs
          WHERE installed_at >= $1
@@ -449,7 +385,6 @@ async fn admin_stats(
     .await
     .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?;
 
-    // Success/failure counts
     let outcome_stats = sqlx::query_as::<_, (bool, i64)>(
         "SELECT success, COUNT(*) as count FROM mcvc_installs
          WHERE installed_at >= $1
@@ -460,7 +395,6 @@ async fn admin_stats(
     .await
     .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?;
 
-    // Total installs
     let total: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM mcvc_installs WHERE installed_at >= $1"
     )
@@ -469,7 +403,6 @@ async fn admin_stats(
     .await
     .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?;
 
-    // Clean install count
     let clean_count: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM mcvc_installs WHERE installed_at >= $1 AND clean_install = true"
     )
@@ -478,7 +411,6 @@ async fn admin_stats(
     .await
     .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?;
 
-    // Unique servers
     let unique_servers: (i64,) = sqlx::query_as(
         "SELECT COUNT(DISTINCT server_uuid) FROM mcvc_installs WHERE installed_at >= $1"
     )

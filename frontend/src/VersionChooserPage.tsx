@@ -18,7 +18,6 @@ import {
   getBuildDownloadUrl,
   getBuildSize,
   isBuildZipInstall,
-  loadMcjarsBaseUrl,
   type McJarsBuild,
   type McJarsType,
 } from './api.ts';
@@ -80,7 +79,7 @@ export default function VersionChooserPage() {
 
   // Load settings + types on mount
   useEffect(() => {
-    loadMcjarsBaseUrl().then(() => fetchTypes())
+    fetchTypes()
       .then(async (res) => {
         setCategorizedTypes(res.types);
         const flat: Record<string, McJarsType> = {};

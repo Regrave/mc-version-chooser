@@ -17,3 +17,5 @@ compact_str = { workspace = true }
 uuid = { workspace = true }
 sqlx = { workspace = true }
 chrono = { workspace = true }
+utoipa = { workspace = true }
+anyhow = { workspace = true }
