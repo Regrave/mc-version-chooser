@@ -1,6 +1,7 @@
 import { faArrowLeft, faArrowDown, faCheck, faExclamationTriangle, faRefresh } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Alert, Badge, Checkbox, Group, Loader, Modal, SegmentedControl, Stack, Text, Title } from '@mantine/core';
+import { Alert, Badge, Checkbox, Group, Loader, Modal, Stack, Text, Title } from '@mantine/core';
+import SegmentedControl from '@/elements/SegmentedControl.tsx';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { axiosInstance, httpErrorToHuman } from '@/api/axios.ts';
