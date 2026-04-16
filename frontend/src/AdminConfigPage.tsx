@@ -1,6 +1,7 @@
 import { faChartPie, faHistory, faServer } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Alert, Group, Loader, SegmentedControl, Stack, Table, Text, Title } from '@mantine/core';
+import { Alert, Group, Loader, Stack, Table, Text, Title } from '@mantine/core';
+import SegmentedControl from '@/elements/SegmentedControl.tsx';
 import { ArcElement, Chart as ChartJS, Legend, Tooltip as ChartTooltip } from 'chart.js';
 import { useEffect, useState } from 'react';
 import { Doughnut } from 'react-chartjs-2';
