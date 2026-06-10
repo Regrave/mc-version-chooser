@@ -131,6 +131,54 @@ async fn wipe_server_files(
     }
 }
 
+/// Neo/Forge eggs expect unix_args.txt in the server root, but the install
+/// zip ships it under /libraries/.../<version>/. Wings has no symlink
+/// endpoint, so copy it to the root instead. Best-effort: failures are
+/// ignored since the install itself already succeeded.
+async fn copy_unix_args_to_root(
+    wings: &wings_api::client::WingsClient,
+    server_uuid: uuid::Uuid,
+    server_type: &str,
+) {
+    let base = match server_type.to_ascii_lowercase().as_str() {
+        "neoforge" => "libraries/net/neoforged/neoforge",
+        "forge" => "libraries/net/minecraftforge/forge",
+        _ => return,
+    };
+
+    let entries = match wings
+        .get_servers_server_files_list_directory(server_uuid, base)
+        .await
+    {
+        Ok(entries) => entries,
+        Err(_) => return,
+    };
+
+    for entry in entries.iter().filter(|e| e.directory) {
+        let result = wings
+            .post_servers_server_files_copy_many(
+                server_uuid,
+                &wings_api::servers_server_files_copy_many::post::RequestBody {
+                    root: "/".into(),
+                    files: vec![
+                        wings_api::servers_server_files_copy_many::post::RequestBodyFiles {
+                            from: format!("{base}/{}/unix_args.txt", entry.name).into(),
+                            to: "unix_args.txt".into(),
+                        },
+                    ],
+                    foreground: true,
+                },
+            )
+            .await;
+
+        if let Ok(wings_api::servers_server_files_copy_many::post::Response::Ok(r)) = result {
+            if r.copied > 0 {
+                break;
+            }
+        }
+    }
+}
+
 /// Record an installation in the database
 async fn record_install(
     db: &shared::database::Database,
@@ -193,6 +241,12 @@ async fn install_jar(
     } else {
         do_jar_install(&wings, &server, &params).await
     };
+
+    if result.is_ok() && params.unzip {
+        if let Some(ref server_type) = params.server_type {
+            copy_unix_args_to_root(&wings, server.uuid, server_type).await;
+        }
+    }
 
     // Track the install if we have metadata
     if let Some(ref server_type) = params.server_type {
