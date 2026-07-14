@@ -20,6 +20,7 @@ import {
   isBuildZipInstall,
   type McJarsBuild,
   type McJarsType,
+  type McJarsVersionInfo,
 } from './api.ts';
 
 type Step = 'type' | 'version' | 'build';
@@ -35,7 +36,7 @@ const CATEGORY_FILTERS: Record<string, (cats: string[]) => boolean> = {
 
 export default function VersionChooserPage() {
   const { addToast } = useToast();
-  const { server } = useServerStore();
+  const { server, state } = useServerStore();
   const navigate = useNavigate();
 
   // Navigation
@@ -71,11 +72,8 @@ export default function VersionChooserPage() {
 
   // Soft hint from egg name (not authoritative)
   const [detectedType, setDetectedType] = useState<string | null>(null);
-  const jarFilename = useMemo(
-    () => detectJarFilename(server.startup ?? server.egg.startup),
-    [server.startup, server.egg.startup],
-  );
-  const isRunning = server.status === 'running' || server.status === 'starting';
+  const jarFilename = useMemo(() => detectJarFilename(server.startup), [server.startup]);
+  const isRunning = state === 'running' || state === 'starting';
 
   // Load settings + types on mount
   useEffect(() => {
