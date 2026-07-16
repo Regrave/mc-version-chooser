@@ -109,6 +109,74 @@ fn err(status: StatusCode, msg: impl Into<String>) -> (StatusCode, String) {
     (status, msg.into())
 }
 
+/// Copy `unix_args.txt` from the Neo/Forge libraries tree to the server root.
+///
+/// The default NeoForge/Forge eggs launch with `@unix_args.txt` and expect the file
+/// at the server root, but the installer only writes it under
+/// `/libraries/net/{neoforged/neoforge,minecraftforge/forge}/<version>/`. The file's
+/// JVM args use root-relative paths, so a plain copy works. Wings has no symlink
+/// endpoint, hence copy. Best-effort: failure never fails the install.
+async fn ensure_root_unix_args(
+    wings: &wings_api::client::WingsClient,
+    server_uuid: uuid::Uuid,
+    server_type: &str,
+) {
+    let base = match server_type {
+        "NEOFORGE" => "/libraries/net/neoforged/neoforge",
+        "FORGE" => "/libraries/net/minecraftforge/forge",
+        _ => return,
+    };
+
+    let version_dirs = match wings
+        .get_servers_server_files_list_directory(server_uuid, &q_list(base))
+        .await
+    {
+        Ok(entries) => entries,
+        Err(_) => return,
+    };
+
+    // Fresh install → exactly one version directory; take the first that has the file.
+    for dir in version_dirs.iter().filter(|e| e.directory) {
+        let args_path = format!("{base}/{}/unix_args.txt", dir.name);
+        let mut reader = match wings
+            .get_servers_server_files_contents(
+                server_uuid,
+                &wings_api::servers_server_files_contents::get::Query {
+                    file: Some(args_path.as_str().into()),
+                    download: Some(false),
+                    max_size: Some(1_000_000),
+                    ..Default::default()
+                },
+            )
+            .await
+        {
+            Ok(reader) => reader,
+            Err(_) => continue,
+        };
+
+        let mut content = Vec::new();
+        if tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut content)
+            .await
+            .is_err()
+            || content.is_empty()
+        {
+            continue;
+        }
+
+        let _ = wings
+            .post_servers_server_files_write(
+                server_uuid,
+                wings_api::client::AsyncRequestReader::new(std::io::Cursor::new(content)),
+                &wings_api::servers_server_files_write::post::Query {
+                    file: Some("/unix_args.txt".into()),
+                    ..Default::default()
+                },
+            )
+            .await;
+        return;
+    }
+}
+
 /// Delete all files in the server root (clean install)
 async fn wipe_server_files(
     wings: &wings_api::client::WingsClient,
@@ -202,6 +270,15 @@ async fn install_jar(
     } else {
         do_jar_install(&wings, &server, &params).await
     };
+
+    // Neo/Forge eggs expect unix_args.txt at the server root (#3). Zip installs run
+    // foreground, so the libraries tree exists by the time we get here.
+    if result.is_ok()
+        && params.unzip
+        && let Some(ref server_type) = params.server_type
+    {
+        ensure_root_unix_args(&wings, server.uuid, server_type).await;
+    }
 
     // Track the install if we have metadata
     if let Some(ref server_type) = params.server_type {
