@@ -13,6 +13,15 @@ use shared::{
 };
 use std::sync::Arc;
 
+// wings-api 1.1.0 moved the directory path off a positional arg into a typed Query.
+#[inline]
+fn q_list(dir: &str) -> wings_api::servers_server_files_list_directory::get::Query {
+    wings_api::servers_server_files_list_directory::get::Query {
+        directory: Some(dir.into()),
+        ..Default::default()
+    }
+}
+
 #[derive(Default)]
 pub struct ExtensionStruct;
 
@@ -106,7 +115,7 @@ async fn wipe_server_files(
     server_uuid: uuid::Uuid,
 ) {
     let entries = match wings
-        .get_servers_server_files_list_directory(server_uuid, "/")
+        .get_servers_server_files_list_directory(server_uuid, &q_list("/"))
         .await
     {
         Ok(entries) => entries,
