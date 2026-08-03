@@ -1,11 +1,17 @@
 {
   "name": "gg_mc_version_chooser",
   "private": true,
-  "version": "2.2.0",
+  "version": "2.3.0",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "dependencies": {
+    "@fortawesome/free-solid-svg-icons": "^7.3.1",
+    "@fortawesome/react-fontawesome": "^3.5.0",
+    "@mantine/charts": "^9.5.0",
+    "@mantine/core": "^9.5.0",
+    "react": "^19.2.7",
+    "react-router": "^8.2.0",
     "shared": "workspace:*"
   }
 }

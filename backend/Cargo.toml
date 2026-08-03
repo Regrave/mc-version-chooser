@@ -2,7 +2,7 @@
 name = "gg_ir77_mcversionchooser"
 description = "MC Version Chooser Extension"
 authors = ["Regrave"]
-version = "2.2.0"
+version = "2.3.0"
 edition = { workspace = true }
 
 [dependencies]

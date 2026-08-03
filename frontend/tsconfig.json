@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "module": "esnext",
+    "target": "esnext",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "paths": {
+      "@/*": ["../../../frontend/src/*"]
+    },
+    "types": ["../../../frontend/src/vite-env.d.ts"]
+  },
+  "include": ["src"]
+}

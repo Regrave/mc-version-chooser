@@ -1,17 +1,14 @@
 import { faChartPie, faHistory, faServer } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { DonutChart } from '@mantine/charts';
 import { Alert, Loader, Table } from '@mantine/core';
 import Group from '@/elements/Group.tsx';
 import SegmentedControl from '@/elements/SegmentedControl.tsx';
 import Stack from '@/elements/Stack.tsx';
 import Text from '@/elements/Text.tsx';
 import Title from '@/elements/Title.tsx';
-import { ArcElement, Chart as ChartJS, Legend, Tooltip as ChartTooltip } from 'chart.js';
 import { useEffect, useState } from 'react';
-import { Doughnut } from 'react-chartjs-2';
 import Select from '@/elements/input/Select.tsx';
-
-ChartJS.register(ArcElement, Legend, ChartTooltip);
 
 interface StatsData {
   total: number;
@@ -89,39 +86,21 @@ export default function AdminConfigPage() {
   }, []);
 
   // Chart data for type distribution
-  const typeChartData = stats ? {
-    labels: stats.type_distribution.map((d) => d.type),
-    datasets: [{
-      data: stats.type_distribution.map((d) => d.count),
-      backgroundColor: stats.type_distribution.map((d) => getTypeColor(d.type)),
-      borderWidth: 0,
-      hoverBorderWidth: 2,
-      hoverBorderColor: '#fff',
-    }],
-  } : null;
+  const typeChartData = stats
+    ? stats.type_distribution.map((d) => ({
+        name: d.type,
+        value: d.count,
+        color: getTypeColor(d.type),
+      }))
+    : null;
 
   // Chart data for success/failure
-  const outcomeChartData = stats ? {
-    labels: ['Successful', 'Failed'],
-    datasets: [{
-      data: [stats.successes, stats.failures],
-      backgroundColor: ['#4ade80', '#ef4444'],
-      borderWidth: 0,
-      hoverBorderWidth: 2,
-      hoverBorderColor: '#fff',
-    }],
-  } : null;
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom' as const,
-        labels: { color: '#94a3b8', font: { size: 11 }, padding: 12 },
-      },
-    },
-  };
+  const outcomeChartData = stats
+    ? [
+        { name: 'Successful', value: stats.successes, color: '#4ade80' },
+        { name: 'Failed', value: stats.failures, color: '#ef4444' },
+      ]
+    : null;
 
   return (
     <div className='mcvc-admin'>
@@ -189,14 +168,14 @@ export default function AdminConfigPage() {
 
               {/* Charts */}
               <div className='mcvc-admin-chart-grid'>
-                {typeChartData && typeChartData.labels.length > 0 && (
+                {typeChartData && typeChartData.length > 0 && (
                   <div className='mcvc-admin-chart-card'>
                     <Text fw={600} mb='sm' size='sm'>
                       <FontAwesomeIcon icon={faServer} style={{ marginRight: 6 }} />
                       Type Distribution
                     </Text>
                     <div className='mcvc-admin-chart-container'>
-                      <Doughnut data={typeChartData} options={chartOptions} />
+                      <DonutChart data={typeChartData} size={180} thickness={26} withLegend withTooltip paddingAngle={2} strokeWidth={0} />
                     </div>
                   </div>
                 )}
@@ -207,7 +186,7 @@ export default function AdminConfigPage() {
                       Success / Failure
                     </Text>
                     <div className='mcvc-admin-chart-container'>
-                      <Doughnut data={outcomeChartData} options={chartOptions} />
+                      <DonutChart data={outcomeChartData} size={180} thickness={26} withLegend withTooltip paddingAngle={2} strokeWidth={0} />
                     </div>
                   </div>
                 )}
