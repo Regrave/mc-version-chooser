@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - beta
 
 permissions:
   contents: write
@@ -28,7 +30,15 @@ jobs:
         run: zip -r gg_ir77_mcversionchooser.c7s.zip Metadata.toml frontend/ backend/ migrations/
 
       - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: gg_ir77_mcversionchooser.c7s.zip
           generate_release_notes: true
+
+      - name: Upload Beta Artifact
+        if: github.ref == 'refs/heads/beta'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gg_ir77_mcversionchooser-beta
+          path: gg_ir77_mcversionchooser.c7s.zip
